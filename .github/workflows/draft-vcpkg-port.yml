@@ -1,0 +1,76 @@
+name: Draft vcpkg port
+
+on:
+  push:
+    branches:
+      - test/vcpkg-port-action
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Upstream tag to package
+        required: true
+        default: v3.0.0
+      run_install:
+        description: Run vcpkg install
+        required: true
+        type: choice
+        options:
+          - "true"
+          - "false"
+        default: "true"
+
+permissions:
+  contents: read
+
+jobs:
+  draft:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout package fork
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          path: package
+
+      - name: Checkout vcpkg
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: microsoft/vcpkg
+          ref: master
+          path: vcpkg
+
+      - name: Draft port
+        id: update
+        uses: Symmetricity/update-vcpkg-port-action@6fc887c32b3442ff2418808c9abc7161cc0be472
+        with:
+          port: streamvbyte
+          upstream-repository: fast-pack/streamvbyte
+          tag: ${{ github.event.inputs.tag || 'v3.0.0' }}
+          vcpkg-root: vcpkg
+          template-dir: package/.vcpkg-port-template
+          dry-run: "true"
+          run-install: ${{ github.event.inputs.run_install || 'true' }}
+          install-args: --clean-after-build --binarysource=clear
+
+      - name: Compile consumer smoke test
+        if: ${{ (github.event.inputs.run_install || 'true') == 'true' }}
+        run: |
+          cat > smoke.c <<'EOF'
+          #include <stdint.h>
+          #include <streamvbyte.h>
+
+          int main(void) {
+              uint32_t values[1] = {1};
+              uint8_t encoded[8] = {0};
+              return (int)streamvbyte_encode(values, 1, encoded) == 0;
+          }
+          EOF
+          cc -Ivcpkg/installed/x64-linux/include smoke.c vcpkg/installed/x64-linux/lib/libstreamvbyte.a -o smoke
+          ./smoke
+
+      - name: Print generated diff
+        env:
+          PORT_PATH: ${{ steps.update.outputs.port-relative-path }}
+          VERSION_PATH: ${{ steps.update.outputs.version-relative-path }}
+        run: |
+          git -C vcpkg add -N "$PORT_PATH" "$VERSION_PATH"
+          git -C vcpkg --no-pager diff -- "$PORT_PATH" versions/baseline.json "$VERSION_PATH"

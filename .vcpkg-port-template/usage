@@ -1,0 +1,4 @@
+streamvbyte provides C headers and a streamvbyte library.
+
+    find_library(STREAMVBYTE_LIBRARY streamvbyte REQUIRED)
+    target_link_libraries(main PRIVATE ${STREAMVBYTE_LIBRARY})
