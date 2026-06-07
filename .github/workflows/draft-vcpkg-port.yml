@@ -73,7 +73,7 @@ jobs:
 
       - name: Draft port
         id: update
-        uses: Symmetricity/update-vcpkg-port-action@v1
+        uses: Symmetricity/update-vcpkg-port-action@v2
         with:
           port: streamvbyte
           upstream-repository: fast-pack/streamvbyte
@@ -84,8 +84,6 @@ jobs:
           vcpkg-root: vcpkg
           template-dir: package/.vcpkg-port-template
           cmake-config: "true"
-          cmake-package-name: streamvbyte
-          cmake-target-name: streamvbyte::streamvbyte
           cmake-header-names: streamvbyte.h
           cmake-library-names: streamvbyte
           consumer-test: "true"
