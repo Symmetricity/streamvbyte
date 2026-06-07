@@ -6,10 +6,6 @@ on:
       - test/vcpkg-port-action
   workflow_dispatch:
     inputs:
-      tag:
-        description: Upstream tag to package
-        required: true
-        default: v3.0.0
       run_install:
         description: Run vcpkg install
         required: true
@@ -48,11 +44,26 @@ jobs:
           path: vcpkg
           token: ${{ secrets.VCPKG_PR_TOKEN }}
 
+      - name: Resolve upstream tag
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="$(gh api repos/fast-pack/streamvbyte/releases/latest --jq .tag_name)"
+          if [ -z "$tag" ] || [ "$tag" = "null" ]; then
+            tag="$(gh api repos/fast-pack/streamvbyte/tags --jq '.[0].name')"
+          fi
+          if [ -z "$tag" ] || [ "$tag" = "null" ]; then
+            echo "::error::Could not resolve latest upstream tag"
+            exit 1
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
       - name: Prepare vcpkg branch
         id: branch
         env:
           PORT: streamvbyte
-          TAG: ${{ github.event.inputs.tag || 'v3.0.0' }}
+          TAG: ${{ steps.release.outputs.tag }}
         run: |
           git -C vcpkg remote add upstream https://github.com/microsoft/vcpkg.git || git -C vcpkg remote set-url upstream https://github.com/microsoft/vcpkg.git
           git -C vcpkg fetch upstream master --depth=1
@@ -66,8 +77,7 @@ jobs:
         with:
           port: streamvbyte
           upstream-repository: fast-pack/streamvbyte
-          tag: ${{ github.event.inputs.tag || 'v3.0.0' }}
-          version: "3.0.0"
+          tag: ${{ steps.release.outputs.tag }}
           version-strip-prefix: v
           archive-url: https://github.com/{repository}/archive/refs/tags/{tag}.tar.gz
           head-ref: master
