@@ -62,32 +62,31 @@ jobs:
 
       - name: Draft port
         id: update
-        uses: Symmetricity/update-vcpkg-port-action@6fc887c32b3442ff2418808c9abc7161cc0be472
+        uses: Symmetricity/update-vcpkg-port-action@v1
         with:
           port: streamvbyte
           upstream-repository: fast-pack/streamvbyte
           tag: ${{ github.event.inputs.tag || 'v3.0.0' }}
+          version: "3.0.0"
+          version-strip-prefix: v
+          archive-url: https://github.com/{repository}/archive/refs/tags/{tag}.tar.gz
+          head-ref: master
           vcpkg-root: vcpkg
           template-dir: package/.vcpkg-port-template
-          dry-run: "true"
+          cmake-config: "true"
+          cmake-package-name: streamvbyte
+          cmake-target-name: streamvbyte::streamvbyte
+          cmake-header-names: streamvbyte.h
+          cmake-library-names: streamvbyte
+          consumer-test: "true"
+          consumer-test-language: C
+          overwrite-version: "true"
+          bootstrap: "true"
           run-install: ${{ github.event.inputs.run_install || 'true' }}
+          test-triplet: x64-linux
           install-args: --clean-after-build --binarysource=clear
-
-      - name: Compile consumer smoke test
-        if: ${{ (github.event.inputs.run_install || 'true') == 'true' }}
-        run: |
-          cat > smoke.c <<'EOF'
-          #include <stdint.h>
-          #include <streamvbyte.h>
-
-          int main(void) {
-              uint32_t values[1] = {1};
-              uint8_t encoded[8] = {0};
-              return (int)streamvbyte_encode(values, 1, encoded) == 0;
-          }
-          EOF
-          cc -Ivcpkg/installed/x64-linux/include smoke.c vcpkg/installed/x64-linux/lib/libstreamvbyte.a -o smoke
-          ./smoke
+          x-add-version-args: ""
+          dry-run: "false"
 
       - name: Print generated diff
         env:
